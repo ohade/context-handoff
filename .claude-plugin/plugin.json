@@ -1,0 +1,63 @@
+{
+  "name": "context-handoff",
+  "version": "0.1.0",
+  "description": "Hands a long interactive session off to a fresh session at a turn end: the main model writes a full brief, the plugin checks it against its bundled template, clears after a cancellable grace, and seeds the new session from the brief. Includes /context-handoff:compact-crafter and mcp__context-handoff__handoff_now; Track is optional.",
+  "author": {
+    "name": "Ohad"
+  },
+  "userConfig": {
+    "thresholdPercent": {
+      "type": "number",
+      "title": "Handoff threshold (percent of the context window)",
+      "description": "Optional, no default. When set (and CONTEXT_HANDOFF_THRESHOLD_TOKENS is not), the nudge and the automatic handoff use this context percentage instead of the token threshold. Integer 1-99. Env override: CONTEXT_HANDOFF_THRESHOLD_PERCENT."
+    },
+    "thresholdTokens": {
+      "type": "number",
+      "title": "Handoff threshold (context tokens)",
+      "description": "At this many context tokens the mod nudges the model once to reach a checkpoint and stop; the automatic handoff then starts at a clean main-agent turn end. Applies unless a percent threshold is set. Integer 1-10000000. Env override: CONTEXT_HANDOFF_THRESHOLD_TOKENS (beats both).",
+      "default": 400000
+    },
+    "ceilingTokens": {
+      "type": "number",
+      "title": "Handoff ceiling (context tokens)",
+      "description": "After the nudge, at this many context tokens the log says the handoff is past its ceiling; it still starts only at a clean turn end, never over background tasks, a draft or a pending typed prompt. Must be above the token threshold (otherwise threshold + 100000). Integer 1-10000000. Env override: CONTEXT_HANDOFF_CEILING_TOKENS.",
+      "default": 500000
+    },
+    "nudgeTurnLimit": {
+      "type": "number",
+      "title": "Turn ends to wait after the nudge",
+      "description": "After this many turn ends since the nudge without a clean one, the log says the handoff is past its turn limit; it still starts only at a clean turn end, never over background tasks, a draft or a pending typed prompt. Integer 1-20. Env override: CONTEXT_HANDOFF_NUDGE_TURN_LIMIT.",
+      "default": 3
+    },
+    "minGrowthTokens": {
+      "type": "number",
+      "title": "Minimum growth of a handed-off session (tokens)",
+      "description": "A session created by a handoff must grow this many tokens past its first measured turn end before it can hand off again. Env override: CONTEXT_HANDOFF_MIN_GROWTH_TOKENS.",
+      "default": 100000
+    },
+    "maxAutoChain": {
+      "type": "number",
+      "title": "Handoffs in a row without a typed prompt",
+      "description": "After this many handoffs with no prompt typed in between, no further handoff runs until you type one. 0 turns automatic handoff off. Env override: CONTEXT_HANDOFF_MAX_AUTO_CHAIN.",
+      "default": 2
+    },
+    "autoRunTimeoutSeconds": {
+      "type": "number",
+      "title": "Automatic run timeout (seconds)",
+      "description": "How long the automatic /context-handoff:compact-crafter run may take before it counts as a failed attempt and built-in compaction stays in charge. 30-1800. Env override: CONTEXT_HANDOFF_AUTO_RUN_TIMEOUT_SECONDS.",
+      "default": 180
+    },
+    "autoRunToolCap": {
+      "type": "number",
+      "title": "Automatic run tool calls",
+      "description": "Tool calls the automatic run may make before it counts as a failed attempt. 1-100. Env override: CONTEXT_HANDOFF_AUTO_RUN_TOOL_CAP.",
+      "default": 15
+    },
+    "clearGraceSeconds": {
+      "type": "number",
+      "title": "Cancel window before the clear (seconds)",
+      "description": "The countdown shown above the prompt, with a Cancel button, before the session is cleared. 1-120. Env override: CONTEXT_HANDOFF_CLEAR_GRACE_SECONDS.",
+      "default": 5
+    }
+  }
+}

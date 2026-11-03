@@ -1,0 +1,8 @@
+{
+  "description": "context-handoff: automatic brief-and-clear handoff at a turn end, the handoff_now tool (manual handoff), the compaction veto during the clear, and the 65% warning rewrite.",
+  "modules": ["./register.tsx"],
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/lifecycle-relay.py\"", "timeout": 5 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/lifecycle-relay.py\"", "timeout": 5 }] }]
+  }
+}

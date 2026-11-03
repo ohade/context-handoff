@@ -1,0 +1,23 @@
+# TRACK-23 v5 (G4): one row per carried-P case, shared by hooks/tests/test-retro-phase5-gate-handoff.sh
+# (the gate) and mods/context-handoff/tests/pure/retro-latch-v4.spec.ts (the mod). Session N has no latch
+# of its own; its previous session P has active-P and no approved-P. Columns, tab-separated: case, kind
+# of carried-P (none, file, dir, symlink to a file, unreadable file), its content, and the decision
+# (latched: P's latch applies to N; released: P was carried to N). Content tokens: @N, @P and @X (an
+# unrelated valid id) are session ids, @PAD is 120 spaces, \n \r \0 are newline, carriage return and
+# NUL, and a lone - is empty.
+absent	none	-	latched
+names-n	file	@N\n	released
+names-n-no-newline	file	@N	released
+names-n-padded	file	  @N \r\n	released
+names-n-then-more-lines	file	@N\n@X\n	released
+names-n-with-nul	file	@N\0\n	released
+names-unrelated	file	@X\n	latched
+names-p-itself	file	@P\n	latched
+empty	file	-	latched
+garbage	file	not a session id\n	latched
+two-ids-one-line	file	@N @X\n	latched
+n-with-suffix	file	@N-extra\n	latched
+n-past-128-bytes	file	@PAD@N\n	latched
+folder	dir	-	latched
+symlink-to-n	symlink	@N\n	latched
+unreadable-n	unreadable	@N\n	latched
