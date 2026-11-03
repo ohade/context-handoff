@@ -12,7 +12,7 @@ this release makes no team-ready claim.
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/handoff-demo.png">
-  <img src="assets/handoff-demo.gif" alt="Recorded Claude Code handoff: start the skill, wait through the cancellable countdown, replay the previous response, and continue the unfinished task." width="1328" height="520">
+  <img src="assets/handoff-demo.gif" alt="Recorded Claude Code handoff: start the skill, wait through the cancellable countdown, replay the previous response, and continue the unfinished task." width="1328">
 </picture>
 
 Real manual handoff on Claude Code 2.1.317 with Haiku 5.5, using a fictional task and no Track.
