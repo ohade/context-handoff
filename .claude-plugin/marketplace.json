@@ -1,0 +1,14 @@
+{
+  "name": "context-handoff",
+  "description": "Install context-handoff for automatic Claude Code session handoffs.",
+  "owner": {
+    "name": "Ohad"
+  },
+  "plugins": [
+    {
+      "name": "context-handoff",
+      "source": "./",
+      "description": "Standalone context handoff for Claude Code, with compact-crafter and optional Track integration."
+    }
+  ]
+}

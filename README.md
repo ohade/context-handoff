@@ -19,7 +19,32 @@ Requirements:
 - Python 3 for the bundled helpers.
 - A POSIX host with `sh`, `bash`, and `date`.
 
-Load the checkout as one plugin:
+Install once for your user from a terminal:
+
+```sh
+claude plugin marketplace add ohade/context-handoff
+claude plugin install context-handoff@context-handoff --scope user
+```
+
+Restart Claude Code after installation. You can then run plain `claude` from any project
+directory. The plugin loads automatically and uses the default 400,000-token threshold;
+the handoff waits for a safe turn end.
+
+You can also install inside Claude Code:
+
+```text
+/plugin marketplace add ohade/context-handoff
+/plugin install context-handoff@context-handoff
+```
+
+Choose **Install for you (user scope)** in the plugin panel. In a new session, check `/help`
+for `/context-handoff:compact-crafter`. Organization policy can restrict custom marketplaces;
+installation does not establish managed-policy compatibility.
+
+If you previously loaded another copy through `--plugin-dir` or your skills directory, use
+one source for this plugin to avoid loading two copies.
+
+To try the checkout for one session instead:
 
 ```sh
 git clone https://github.com/ohade/context-handoff.git
@@ -160,12 +185,15 @@ The fixture suites were run on macOS with these runtimes:
 
 | Runtime | Version | Check |
 |---|---|---|
-| Claude Code | 2.1.316 | 243 engine fixture tests |
-| Bun | 1.3.6 | 715 pure tests |
+| Claude Code | 2.1.316, 2.1.317 | 243 engine fixture tests |
+| Bun | 1.3.6 | 716 pure tests |
 | Python | 3.12.8 | Six helper unittest tests and the pytest suites |
 | pytest | 9.1.1 | 80 skill/helper and synthetic extractor tests |
 
 The table describes fixture checks. Interactive results are separate and have the limits below.
+
+Catalog validation and user-scope installation were also checked on Claude Code 2.1.317.
+The installed plugin remained enabled when listed from a different working directory.
 
 Native validation on Claude Code 2.1.316 has passed manual and automatic handoffs without
 Track. Both selected the packaged skill, entered a different
