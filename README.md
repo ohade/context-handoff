@@ -10,6 +10,15 @@ Tested on Claude Code 2.1.316 on macOS. Personal-account interactive checks and 
 suites are described below. Organization-managed policy compatibility is unverified;
 this release makes no team-ready claim.
 
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/handoff-demo.png">
+  <img src="assets/handoff-demo.gif" alt="Recorded Claude Code handoff: start the skill, wait through the cancellable countdown, replay the previous response, and continue the unfinished task." width="1328" height="520">
+</picture>
+
+Real manual handoff on Claude Code 2.1.317 with Haiku 5.5, using a fictional task and no Track.
+The view is cropped and pauses are trimmed; the five-second countdown runs at its recorded speed.
+[Watch the GIF](assets/handoff-demo.gif) · [View the still](assets/handoff-demo.png).
+
 ## Install and use
 
 Requirements:
