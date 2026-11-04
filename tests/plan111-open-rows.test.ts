@@ -114,6 +114,21 @@ describe('plan:111 open decision rows reach the automatic run before its first s
     expect(world.commands).toEqual([])
   })
 
+  test('a cycle cancelled while the open-rows write is pending issues no command (re-fence before command.run)', async ($, on) => {
+    let release: () => void = () => {}
+    const hold = new Promise<void>(resolve => { release = resolve })
+    const { world, clock } = setup(on, () => [twelve[0]])
+    world.writeHolds = new Map([[ROWS_PATH, hold]])
+    await armed($, world, clock)
+    expect(world.writeHolds.has(ROWS_PATH)).toBe(false)
+    expect(world.files.has(ROWS_PATH)).toBe(false)
+    expect(world.commands).toEqual([])
+    await typed($, 'wait, one more thing', 't3')
+    release()
+    await settle(clock)
+    expect(world.commands).toEqual([])
+  })
+
   test('a repeated automatic cycle rewrites the record for its own cycle', async ($, on) => {
     let rows: unknown[] = [twelve[0]]
     const { world, clock } = setup(on, () => rows)

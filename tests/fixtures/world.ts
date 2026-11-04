@@ -104,6 +104,8 @@ export type World = {
   promptReadHold?: Promise<void> | null
   /** How many prompt.read calls waited on promptReadHold. */
   promptReadHeld?: number
+  /** plan:111, optional: a write to a path here waits for its promise, then succeeds. One-shot. */
+  writeHolds?: Map<string, Promise<void>>
   /** Every path fs.read was asked for. */
   reads: string[]
   /** fs.list `mtimeMs` per path (W8 E); a path not here lists with 0. */
@@ -162,8 +164,13 @@ export function worldOf(on: On, over: Partial<World> = {}): World {
     if (world.failing.has('kill-switch-check') && e.path === `${STATE}/DISABLED`) return { deny: 'injected: kill switch check' }
     return { value: templateOr(e.path) !== undefined || [...world.files.keys()].some(k => k.startsWith(`${e.path}/`)) }
   })
-  asAny('fs.write', (_$: unknown, e: { path: string; text: string }) => {
+  asAny('fs.write', async (_$: unknown, e: { path: string; text: string }) => {
     if (world.failing.has('state-write') && e.path.startsWith(`${STATE}/sessions/`)) return { deny: `injected: EIO ${e.path}` }
+    const hold = world.writeHolds?.get(e.path)
+    if (hold !== undefined) {
+      world.writeHolds?.delete(e.path)
+      await hold
+    }
     world.files.set(e.path, e.text)
     return { value: undefined }
   })

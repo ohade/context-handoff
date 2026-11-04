@@ -1003,8 +1003,11 @@ function startAutoRun(r: Runtime, e: EffectOf<'startAutoRun'>): void {
       }
       r.runToolCalls = 0
       r.runDeclared = null
-      if (!(await writeOpenRows(r, e.cycleId))) {
-        await log('auto-run-skipped', `${e.cycleId} the runtime, session or cycle changed while the open rows were read; command.run not issued`)
+      const source = r.machine.sessionId
+      await writeOpenRows(r, e.cycleId, source)
+      // plan:111 R1: re-fence after every await, immediately before the command (no await in between).
+      if (!(await isRunStill(r, e.cycleId, source))) {
+        await log('auto-run-skipped', `${e.cycleId} the runtime, session or cycle changed while the open rows were read or written; command.run not issued`)
         return
       }
       try {
@@ -1024,18 +1027,26 @@ function openRowsPath(briefDir: string, sessionId: string): string {
 }
 
 /**
- * plan:111: reads the open waiting/paused rows and writes them, complete or typed incomplete, before the
- * skill starts. The checkpoint awaits host calls, so the write is fenced to this runtime, session and
- * cycle (as preflightPending is); false means the fence failed and nothing was written. A failed
- * checkpoint or write never stops the run: the record says incomplete, or the skill finds no record.
+ * plan:111 fence: this runtime, the source session (machine and host) and the cycle are all still
+ * current. The host session is awaited first, so every check after it is synchronous and its result
+ * holds until the caller's next await.
  */
-async function writeOpenRows(r: Runtime, cycleId: string): Promise<boolean> {
-  const source = r.machine.sessionId
+async function isRunStill(r: Runtime, cycleId: string, source: string): Promise<boolean> {
+  let host: string
+  try { host = await r.host.sessionId() } catch { return false }
+  return rt === r && host === source && r.machine.sessionId === source && isRunCallable(r.machine, cycleId)
+}
+
+/**
+ * plan:111: reads the open waiting/paused rows and writes them, complete or typed incomplete, before the
+ * skill starts. The checkpoint awaits host calls, so nothing is written unless the run is still
+ * current (isRunStill); the caller fences again before the command. A failed checkpoint or write
+ * never stops the run: the record says incomplete, or the skill finds no record.
+ */
+async function writeOpenRows(r: Runtime, cycleId: string, source: string): Promise<void> {
   let result: { checkpoint: TrackCheckpoint | null } | { failure: string }
   try { result = await requestTrackCheckpoint(r, source) } catch (error) { result = { failure: errorText(error) } }
-  try {
-    if (rt !== r || r.machine.sessionId !== source || await r.host.sessionId() !== source || !isRunCallable(r.machine, cycleId)) return false
-  } catch { return false }
+  if (!(await isRunStill(r, cycleId, source))) return
   const record = openRowsRecord(result, cycleId, source)
   try {
     await r.host.write(openRowsPath(r.briefDir, source), JSON.stringify(record))
@@ -1043,7 +1054,6 @@ async function writeOpenRows(r: Runtime, cycleId: string): Promise<boolean> {
   } catch (error) {
     await log('open-rows-failed', `${cycleId} ${clip(errorText(error), 200)}`)
   }
-  return true
 }
 
 function clip(text: string, max: number): string {
