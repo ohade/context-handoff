@@ -39,7 +39,7 @@ import type { ReviewRead } from './reviews'
 import { decideFactsReuse, queueReminder } from './nudge'
 import type { FactsKey, TranscriptStat } from './nudge'
 import { readRelay } from './relay'
-import { declaredRecords, declaredRemoval, openDecisionRows, openRowsHint, pendingCoverage, pendingItems, removedDecisions, sectionThreePendingLines, strictPendingLines, strictRecords, uncoveredCount, unionDeclared } from './pending-items'
+import { declaredRecords, declaredRemoval, openDecisionRows, openRowsHint, openRowsRecord, pendingCoverage, pendingItems, removedDecisions, sectionThreePendingLines, strictPendingLines, strictRecords, uncoveredCount, unionDeclared } from './pending-items'
 import type { Declared } from './pending-items'
 import { coveredItems, NOTES_ONLY, waitingRowsOf } from './decision-hold'
 import type { WaitingRows } from './decision-hold'
@@ -1003,6 +1003,13 @@ function startAutoRun(r: Runtime, e: EffectOf<'startAutoRun'>): void {
       }
       r.runToolCalls = 0
       r.runDeclared = null
+      const source = r.machine.sessionId
+      await writeOpenRows(r, e.cycleId, source)
+      // plan:111 R1: re-fence after every await, immediately before the command (no await in between).
+      if (!(await isRunStill(r, e.cycleId, source))) {
+        await log('auto-run-skipped', `${e.cycleId} the runtime, session or cycle changed while the open rows were read or written; command.run not issued`)
+        return
+      }
       try {
         const value = await r.host.runCommand(SKILL_COMMAND, args)
         await log('auto-run-resolved', `${e.cycleId} value=${clip(JSON.stringify(value) ?? 'undefined', 200)}`)
@@ -1012,6 +1019,41 @@ function startAutoRun(r: Runtime, e: EffectOf<'startAutoRun'>): void {
       }
     })()
   })
+}
+
+/** plan:111: where the automatic run reads this session's open decision rows (allowlist: `<briefDir>/<sid>-*`). */
+function openRowsPath(briefDir: string, sessionId: string): string {
+  return `${briefDir}/${sessionId}-open-rows.json`
+}
+
+/**
+ * plan:111 fence: this runtime, the source session (machine and host) and the cycle are all still
+ * current. The host session is awaited first, so every check after it is synchronous and its result
+ * holds until the caller's next await.
+ */
+async function isRunStill(r: Runtime, cycleId: string, source: string): Promise<boolean> {
+  let host: string
+  try { host = await r.host.sessionId() } catch { return false }
+  return rt === r && host === source && r.machine.sessionId === source && isRunCallable(r.machine, cycleId)
+}
+
+/**
+ * plan:111: reads the open waiting/paused rows and writes them, complete or typed incomplete, before the
+ * skill starts. The checkpoint awaits host calls, so nothing is written unless the run is still
+ * current (isRunStill); the caller fences again before the command. A failed checkpoint or write
+ * never stops the run: the record says incomplete, or the skill finds no record.
+ */
+async function writeOpenRows(r: Runtime, cycleId: string, source: string): Promise<void> {
+  let result: { checkpoint: TrackCheckpoint | null } | { failure: string }
+  try { result = await requestTrackCheckpoint(r, source) } catch (error) { result = { failure: errorText(error) } }
+  if (!(await isRunStill(r, cycleId, source))) return
+  const record = openRowsRecord(result, cycleId, source)
+  try {
+    await r.host.write(openRowsPath(r.briefDir, source), JSON.stringify(record))
+    await log('open-rows-written', `${cycleId} complete=${record.complete} rows=${record.rows.length}`)
+  } catch (error) {
+    await log('open-rows-failed', `${cycleId} ${clip(errorText(error), 200)}`)
+  }
 }
 
 function clip(text: string, max: number): string {
