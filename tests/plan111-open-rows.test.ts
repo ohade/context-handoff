@@ -9,9 +9,9 @@ import { BRIEFS, OLD, SESSION_START, SNAPSHOT_TEXT, RUN_SNAPSHOT, TRANSCRIPT, TU
 const ROWS_PATH = `${BRIEFS}/${OLD}-open-rows.json`
 const toolNames = ['mcp__track__checkpoint', 'mcp__track__restore_tracker']
 const checkpoint = (open_steps: unknown[]) => ({ v: 1, ok: true, source_session: OLD, revision: 3, checksum: 'a'.repeat(64), counts: { questions: 0, answers: 0, steps: open_steps.length }, open_steps })
-const LONG_SUBJECT = 'Intake: uncommitted-skills-gate fails on deleted managed paths (git add pathspec, 95 failures) — root cause and fix proposal; hook edit needs Ohad approval'
+const LONG_SUBJECT = 'Intake: uncommitted-skills-gate fails on deleted managed paths (git add pathspec, 95 failures) — root cause and fix proposal; hook edit needs user approval'
 /** Twelve open decision rows, more than the refusal hint's ten, each with a title longer than sixty characters. */
-const twelve = Array.from({ length: 12 }, (_, i) => ({ id: `plan:${i + 1}`, status: i % 3 === 0 ? 'paused' : 'waiting', subject: `${LONG_SUBJECT} #${i + 1}`, note: `Owner: Ohad; reply "approve ${i + 1}"` }))
+const twelve = Array.from({ length: 12 }, (_, i) => ({ id: `plan:${i + 1}`, status: i % 3 === 0 ? 'paused' : 'waiting', subject: `${LONG_SUBJECT} #${i + 1}`, note: `Owner: User; reply "approve ${i + 1}"` }))
 const done = { id: 'plan:40', status: 'in_progress', subject: 'Work in flight, not a decision', note: 'Owner: claude' }
 
 type Write = { path: string; commandsBefore: number }
@@ -82,7 +82,7 @@ describe('plan:111 open decision rows reach the automatic run before its first s
   })
 
   test('a row that does not fit the budget makes the record explicitly incomplete; no row is cut', async ($, on) => {
-    const huge = { id: 'plan:13', status: 'waiting', subject: 'Huge decision', note: `Owner: Ohad; ${'x'.repeat(70_000)}` }
+    const huge = { id: 'plan:13', status: 'waiting', subject: 'Huge decision', note: `Owner: User; ${'x'.repeat(70_000)}` }
     const { world, clock } = setup(on, () => [twelve[1], huge, twelve[2]])
     await armed($, world, clock)
     const record = parsed(world)
