@@ -6,7 +6,9 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 
 import { BRIEFS, OLD, SESSION_START, SNAPSHOT_TEXT, RUN_SNAPSHOT, TRANSCRIPT, TURN, worldOf } from './fixtures/world'
 
-const ROWS_PATH = `${BRIEFS}/${OLD}-open-rows.json`
+// plan:111 overlap: the record is per cycle; cycle #1's file unless a test names another.
+const rowsPath = (n: number) => `${BRIEFS}/${OLD}-open-rows-${n}.json`
+const ROWS_PATH = rowsPath(1)
 const toolNames = ['mcp__track__checkpoint', 'mcp__track__restore_tracker']
 const checkpoint = (open_steps: unknown[]) => ({ v: 1, ok: true, source_session: OLD, revision: 3, checksum: 'a'.repeat(64), counts: { questions: 0, answers: 0, steps: open_steps.length }, open_steps })
 const LONG_SUBJECT = 'Intake: uncommitted-skills-gate fails on deleted managed paths (git add pathspec, 95 failures) — root cause and fix proposal; hook edit needs user approval'
@@ -62,9 +64,9 @@ async function armed($: any, world: any, clock: any): Promise<void> {
   await settle(clock)
 }
 
-function parsed(world: any): any {
-  expect(world.files.has(ROWS_PATH)).toBe(true)
-  return JSON.parse(world.files.get(ROWS_PATH) as string)
+function parsed(world: any, path = ROWS_PATH): any {
+  expect(world.files.has(path)).toBe(true)
+  return JSON.parse(world.files.get(path) as string)
 }
 const exact = (row: any) => ({ track_id: row.id, status: row.status, subject: row.subject, note: row.note })
 
@@ -129,7 +131,7 @@ describe('plan:111 open decision rows reach the automatic run before its first s
     expect(world.commands).toEqual([])
   })
 
-  test('a repeated automatic cycle rewrites the record for its own cycle', async ($, on) => {
+  test('a repeated automatic cycle writes the record for its own cycle', async ($, on) => {
     let rows: unknown[] = [twelve[0]]
     const { world, clock } = setup(on, () => rows)
     await armed($, world, clock)
@@ -139,7 +141,7 @@ describe('plan:111 open decision rows reach the automatic run before its first s
     await $.turn.complete({ ...TURN, turnId: 't3' })
     await settle(clock)
     expect(world.commands).toEqual(['context-handoff:compact-crafter', 'context-handoff:compact-crafter'])
-    const record = parsed(world)
+    const record = parsed(world, rowsPath(2))
     expect(record.cycle).toBe(`${OLD}#2`)
     expect(record.rows).toEqual([exact(twelve[4])])
   })

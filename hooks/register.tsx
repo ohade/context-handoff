@@ -1022,8 +1022,10 @@ function startAutoRun(r: Runtime, e: EffectOf<'startAutoRun'>): void {
 }
 
 /** plan:111: where the automatic run reads this session's open decision rows (allowlist: `<briefDir>/<sid>-*`). */
-function openRowsPath(briefDir: string, sessionId: string): string {
-  return `${briefDir}/${sessionId}-open-rows.json`
+function openRowsPath(briefDir: string, sessionId: string, cycleId: string): string {
+  // plan:111 overlap: one file per cycle (`<sid>#<n>` -> `-open-rows-<n>`), so a late write of an older
+  // cycle lands in its own file and never replaces the current cycle's record.
+  return `${briefDir}/${sessionId}-open-rows-${cycleId.slice(cycleId.lastIndexOf('#') + 1)}.json`
 }
 
 /**
@@ -1049,7 +1051,7 @@ async function writeOpenRows(r: Runtime, cycleId: string, source: string): Promi
   if (!(await isRunStill(r, cycleId, source))) return
   const record = openRowsRecord(result, cycleId, source)
   try {
-    await r.host.write(openRowsPath(r.briefDir, source), JSON.stringify(record))
+    await r.host.write(openRowsPath(r.briefDir, source, cycleId), JSON.stringify(record))
     await log('open-rows-written', `${cycleId} complete=${record.complete} rows=${record.rows.length}`)
   } catch (error) {
     await log('open-rows-failed', `${cycleId} ${clip(errorText(error), 200)}`)

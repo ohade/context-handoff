@@ -85,6 +85,7 @@ def test_open_rows_exact_copy_is_limited_to_track_backed_records():
     # rule for the open-rows record applies to records with a track_id; a decision with no known
     # Track row keeps track_id null and its own conversation wording.
     text = automatic_run_paragraph()
-    assert "open-rows.json" in text
+    assert "open-rows-<n>.json" in text
+    assert "the number after `#` in the `cycle=` value" in text
     assert "For each record with a `track_id`" in text
     assert "keeps `track_id: null` and its own subject, note and unblock" in text
