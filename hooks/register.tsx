@@ -39,7 +39,7 @@ import type { ReviewRead } from './reviews'
 import { decideFactsReuse, queueReminder } from './nudge'
 import type { FactsKey, TranscriptStat } from './nudge'
 import { readRelay } from './relay'
-import { declaredRecords, declaredRemoval, openDecisionRows, openRowsHint, pendingCoverage, pendingItems, removedDecisions, sectionThreePendingLines, strictPendingLines, strictRecords, uncoveredCount, unionDeclared } from './pending-items'
+import { declaredRecords, declaredRemoval, openDecisionRows, openRowsHint, openRowsRecord, pendingCoverage, pendingItems, removedDecisions, sectionThreePendingLines, strictPendingLines, strictRecords, uncoveredCount, unionDeclared } from './pending-items'
 import type { Declared } from './pending-items'
 import { coveredItems, NOTES_ONLY, waitingRowsOf } from './decision-hold'
 import type { WaitingRows } from './decision-hold'
@@ -1003,6 +1003,10 @@ function startAutoRun(r: Runtime, e: EffectOf<'startAutoRun'>): void {
       }
       r.runToolCalls = 0
       r.runDeclared = null
+      if (!(await writeOpenRows(r, e.cycleId))) {
+        await log('auto-run-skipped', `${e.cycleId} the runtime, session or cycle changed while the open rows were read; command.run not issued`)
+        return
+      }
       try {
         const value = await r.host.runCommand(SKILL_COMMAND, args)
         await log('auto-run-resolved', `${e.cycleId} value=${clip(JSON.stringify(value) ?? 'undefined', 200)}`)
@@ -1012,6 +1016,34 @@ function startAutoRun(r: Runtime, e: EffectOf<'startAutoRun'>): void {
       }
     })()
   })
+}
+
+/** plan:111: where the automatic run reads this session's open decision rows (allowlist: `<briefDir>/<sid>-*`). */
+function openRowsPath(briefDir: string, sessionId: string): string {
+  return `${briefDir}/${sessionId}-open-rows.json`
+}
+
+/**
+ * plan:111: reads the open waiting/paused rows and writes them, complete or typed incomplete, before the
+ * skill starts. The checkpoint awaits host calls, so the write is fenced to this runtime, session and
+ * cycle (as preflightPending is); false means the fence failed and nothing was written. A failed
+ * checkpoint or write never stops the run: the record says incomplete, or the skill finds no record.
+ */
+async function writeOpenRows(r: Runtime, cycleId: string): Promise<boolean> {
+  const source = r.machine.sessionId
+  let result: { checkpoint: TrackCheckpoint | null } | { failure: string }
+  try { result = await requestTrackCheckpoint(r, source) } catch (error) { result = { failure: errorText(error) } }
+  try {
+    if (rt !== r || r.machine.sessionId !== source || await r.host.sessionId() !== source || !isRunCallable(r.machine, cycleId)) return false
+  } catch { return false }
+  const record = openRowsRecord(result, cycleId, source)
+  try {
+    await r.host.write(openRowsPath(r.briefDir, source), JSON.stringify(record))
+    await log('open-rows-written', `${cycleId} complete=${record.complete} rows=${record.rows.length}`)
+  } catch (error) {
+    await log('open-rows-failed', `${cycleId} ${clip(errorText(error), 200)}`)
+  }
+  return true
 }
 
 function clip(text: string, max: number): string {

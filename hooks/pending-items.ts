@@ -146,6 +146,42 @@ export function openRowsHint(checkpoint: TrackCheckpoint | null, cap = { rows: 1
   return [...lines, ...(hidden > 0 ? [`... (+${hidden} more)`] : [])].join('\n')
 }
 
+/** plan:111: the most rows and UTF-8 bytes of row JSON the open-rows record carries. */
+export const OPEN_ROWS_BUDGET = { rows: 50, bytes: 65_536 }
+
+export type OpenRow = { track_id: string; status: string; subject: string; note?: string }
+/** What the automatic run reads before its first snapshot: exact rows, or an explicit incomplete result. */
+export type OpenRowsRecord = { v: 1; cycle: string; session: string; complete: boolean; reason?: string; rows: OpenRow[] }
+
+/**
+ * plan:111, 2026-11-04: the automatic run had only the reminder's 60-character titles, so it guessed a
+ * subject, the guess was bound, and the exact copy then counted as a removal. This record gives the
+ * run every open waiting or paused row before it declares anything. A row is never cut: one that does
+ * not fit the budget is left out and named, and the record says it is incomplete. The rows are data,
+ * never consent; the final checkpoint and pendingCoverage still decide.
+ */
+export function openRowsRecord(source: { checkpoint: TrackCheckpoint | null } | { failure: string }, cycle: string, session: string, cap = OPEN_ROWS_BUDGET): OpenRowsRecord {
+  const base = { v: 1 as const, cycle, session }
+  if ('failure' in source) return { ...base, complete: false, reason: `Track checkpoint failed: ${source.failure.slice(0, 200)}`, rows: [] }
+  if (source.checkpoint === null) return { ...base, complete: true, reason: 'Track is absent', rows: [] }
+  if (source.checkpoint.open_steps === undefined) return { ...base, complete: false, reason: 'the checkpoint has no open_steps inventory', rows: [] }
+  const rows: OpenRow[] = []
+  const left: string[] = []
+  let size = 0
+  for (const row of openDecisionRows(source.checkpoint)) {
+    const item: OpenRow = { track_id: row.id, status: row.status, subject: row.subject, ...(row.note !== undefined && { note: row.note }) }
+    const added = byteLength(JSON.stringify(item)) + 1
+    if (rows.length >= cap.rows || size + added > cap.bytes) {
+      left.push(row.id)
+      continue
+    }
+    rows.push(item)
+    size += added
+  }
+  if (left.length === 0) return { ...base, complete: true, rows }
+  return { ...base, complete: false, reason: `rows over the budget (${cap.rows} rows, ${cap.bytes} bytes) were left out: ${left.join(', ')}`, rows }
+}
+
 /** A decision a snapshot declared in section 3, as the automatic run's removal check compares it. */
 export type Declared = { subject: string; track_id: string | null }
 

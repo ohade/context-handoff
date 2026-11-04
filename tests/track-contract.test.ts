@@ -27,9 +27,11 @@ test('a checkpoint receipt is required before clear and validated restoration pr
     return { result: JSON.stringify(e.tool === 'mcp__track__checkpoint' ? checkpoint : { ...checkpoint, destination_session: NEW, applied_checksum: checkpoint.checksum, counts: checkpoint.counts }) }
   })
   await ready($, world, clock)
-  expect(calls.map(c => c.tool)).toEqual(['mcp__track__checkpoint', 'mcp__track__restore_tracker'])
+  // plan:111: the first checkpoint is the run-start open-rows read; the second is the final receipt.
+  expect(calls.map(c => c.tool)).toEqual(['mcp__track__checkpoint', 'mcp__track__checkpoint', 'mcp__track__restore_tracker'])
   expect(calls[0]).toMatchObject({ expected_session: OLD, session: OLD })
-  expect(calls[1]).toMatchObject({ from_session: OLD, session: NEW, expected_checkpoint: checkpoint })
+  expect(calls[1]).toMatchObject({ expected_session: OLD, session: OLD })
+  expect(calls[2]).toMatchObject({ from_session: OLD, session: NEW, expected_checkpoint: checkpoint })
   expect(world.commands).toEqual(['context-handoff:compact-crafter', 'clear'])
   expect(world.submits).toHaveLength(1)
   expect(JSON.stringify(world.notes)).toContain('Verified Track restore receipt:')
@@ -47,7 +49,8 @@ for (const [name, value] of [
     let attempts = 0
     on('tool.call', { tool: /^mcp__track__/ }, () => { attempts++; return { result: JSON.stringify(value) } })
     await ready($, world, clock)
-    expect(attempts).toBe(2)
+    // plan:111: one run-start open-rows read, then exactly two final checkpoint attempts.
+    expect(attempts).toBe(3)
     expect(world.commands).toEqual(['context-handoff:compact-crafter'])
     expect(world.sessionId).toBe(OLD)
     expect(JSON.parse(world.files.get(`${STATE}/sessions/${OLD}.json`) ?? '{}').phase).toBe('IDLE')

@@ -50,7 +50,8 @@ test('registered decisions permit handoff with all five open rows and no registr
   })
   await ready($, world, clock)
   expect(world.commands).toEqual(['context-handoff:compact-crafter', 'clear'])
-  expect(calls).toEqual(['mcp__track__checkpoint', 'mcp__track__checkpoint', 'mcp__track__restore_tracker'])
+  // plan:111: run-start open-rows read, preflight, final receipt, then restore.
+  expect(calls).toEqual(['mcp__track__checkpoint', 'mcp__track__checkpoint', 'mcp__track__checkpoint', 'mcp__track__restore_tracker'])
   const section = briefOf(world)!.text.split('## 3. Pending, owned by the user\n')[1]!.split('\n## 4.')[0]!
   expect(section.split('\n').filter(line => line.startsWith('- Pending: '))).toHaveLength(4)
   expect(section).toContain('Release decision')
@@ -136,7 +137,7 @@ for (const guard of ['draft', 'kill-switch', 'review'] as const) {
     let checkpoints = 0
     on('tool.call', { tool: /^mcp__track__/ }, async (_, e) => {
       // TRACK-23 adds preflight. This race still targets the final check.
-      if (e.tool === 'mcp__track__checkpoint' && ++checkpoints === 2) {
+      if (e.tool === 'mcp__track__checkpoint' && ++checkpoints === 3) { // plan:111: 1 run-start read, 2 preflight, 3 final
         started()
         await blocked
       }
